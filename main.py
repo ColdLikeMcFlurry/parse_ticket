@@ -221,8 +221,11 @@ def read_json():
                     "InitialTrainStationCode": train["InitialTrainStationCode"],
                     "FinalTrainStationInfo": train["FinalTrainStationInfo"]['StationCode'],
 
+                    "TrainDescription": train["TrainDescription"],
+                    "TrainBrandCode": train["TrainBrandCode"],
+
                     'date_search': datetime.today().strftime('%Y-%m-%d'),
-                    "DepartureDateTime":  train["DepartureDateTime"],
+                    "DepartureDateTime":  train["DepartureDateTime"]
 
                 }
                 pprint.pprint(data, sort_dicts=False)
