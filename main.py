@@ -65,6 +65,17 @@ def get_trains_info(st_from, st_to, orig, dest, dprt_dt):
         print(f'ответ от сервера - {response.status_code} для маршрута {st_from} - {st_to} на {dprt_dt.split('T')[0]}')
         trains_info = response.json()
         print(f'Получил информацио о поездах на маршруте {st_from} - {st_to}')
+        # добавляем дату и маршруты в те ответы, где поезда не курсируют
+        if trains_info.get('errorInfo') and trains_info['errorInfo'].get('Code') == 310:
+            try:
+                trains_info['errorInfo']['dprt_dt'] = dprt_dt.split('T')[0]
+                trains_info['errorInfo']['OriginName'] = st_from
+                trains_info['errorInfo']['DestinationName'] = st_to
+                trains_info['errorInfo']['OriginStationCode'] = orig
+                trains_info['errorInfo']['DestinationStationCode'] = dest
+            except Exception as e:
+                print(f"Ошибка при форматировании даты: {e}")
+        # print(trains_info['errorInfo']['Message'])
         return trains_info
     except requests.exceptions.RequestException as e:
         print(f"❌ Ошибка запроса к API: {e}")
@@ -163,7 +174,7 @@ def get_data_from_excel():
 def start_parse():
     for route in get_data_from_excel():
         stFrom, stTo, orig_code, dest_code = route[0], route[1], route[2], route[3]
-        for j in range(84, 86):
+        for j in range(8, 15):
             next_day = start_date + timedelta(days=j)
             dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
             time.sleep(7)
@@ -198,6 +209,10 @@ def read_json():
 
         # проходимся по направлениям
         for direction in directions:
+            # обработка ошибок
+            if direction.get('errorInfo') and direction['errorInfo'].get('Code') == 310:
+                errors = direction.get('errorInfo')
+                pprint.pprint(errors, sort_dicts=False)
             # берем все поезда по направлению
             trains = direction.get("Trains", [])
             # проходимся по поедам в по направлению
@@ -225,7 +240,7 @@ def read_json():
                     "TrainBrandCode": train["TrainBrandCode"],
 
                     'date_search': datetime.today().strftime('%Y-%m-%d'),
-                    "DepartureDateTime":  train["DepartureDateTime"]
+                    "DepartureDateTime": train["DepartureDateTime"]
 
                 }
                 pprint.pprint(data, sort_dicts=False)
@@ -235,10 +250,10 @@ def read_json():
 
 
 if __name__ == "__main__":
-    check_connection()
+    # check_connection()
     start_date = date.today()
     all_info = []
     train_info = []
     train_errors = []
-    start_parse()
+    # start_parse()
     read_json()
