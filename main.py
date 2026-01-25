@@ -5,6 +5,8 @@ import json
 import os
 import pandas as pd
 from datetime import date, timedelta, datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import random
 
 # URL для проверки доступности сайта
 site_url = "https://www.rzd.ru/"
@@ -64,7 +66,7 @@ def get_trains_info(st_from, st_to, orig, dest, dprt_dt):
         response.raise_for_status()  # выбросит ошибку, если статус != 200
         print(f'ответ от сервера - {response.status_code} для маршрута {st_from} - {st_to} на {dprt_dt.split('T')[0]}')
         trains_info = response.json()
-        print(trains_info)
+        # print(trains_info)
         print(f'Получил информацио о поездах на маршруте {st_from} - {st_to}')
         # добавляем дату и маршруты в те ответы, где поезда не курсируют
         if trains_info.get('errorInfo') and trains_info['errorInfo'].get('Code') == 310:
@@ -172,38 +174,74 @@ def get_data_from_excel():
     return df.values
 
 
+# тут берем инфу на 1  направление
+def process_one_request(route, next_day):
+    stFrom, stTo, orig_code, dest_code = route
+    if next_day.weekday() not in [1, 3]:  # вторник или четверг
+        return None
+    dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
+
+    time.sleep(random.uniform(2, 4))
+
+    return get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
+
+
+#  тут сохдаем многопоточность, например, 1 направление на 5 дат
 def start_parse():
-    for route in get_data_from_excel():
-        stFrom, stTo, orig_code, dest_code = route[0], route[1], route[2], route[3]
-        for j in range(5, 10):
-            next_day = start_date + timedelta(days=j)
-            # обработнка нужных дней
-            if next_day.weekday() not in [1, 3]:
-                continue
-            dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
-            time.sleep(10)
+    all_info = []
 
-            all_data = get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
-            if not all_data:
-                continue
-            all_info.append(all_data)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
 
-            # trains_info = get_trains_number(all_data)
-            # if not trains_info:
-            #     continue
-            # detailed_info, errors = get_info_in_train(trains_info)
-            # train_info.extend(detailed_info)
-            # train_errors.extend(errors)
+        # Формируем все задачи
+        for route in get_data_from_excel():
+            for j in range(0, 120):
+                next_day = start_date + timedelta(days=j)
+                future = executor.submit(process_one_request, route, next_day)
+                futures.append(future)
 
-    # тут мы записываем в json все направления
+        # Сбор результатов по мере готовности
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                all_info.append(result)
+
+    # Запись результата
     with open("all_info.json", "w", encoding="utf-8") as f:
         json.dump(all_info, f, ensure_ascii=False, indent=4)
-    # # тут более точная информация по поезду
-    # with open("detailed_data.json", "w", encoding="utf-8") as f:
-    #     json.dump(train_info, f, ensure_ascii=False, indent=4)
-    # # тут создаем json с ошибками
-    # with open("train_errors.json", "w", encoding="utf-8") as f:
-    #     json.dump(train_errors, f, ensure_ascii=False, indent=4)
+
+
+# def start_parse():
+#     for route in get_data_from_excel():
+#         stFrom, stTo, orig_code, dest_code = route[0], route[1], route[2], route[3]
+#         for j in range(5, 10):
+#             next_day = start_date + timedelta(days=j)
+#             # обработнка нужных дней
+#             if next_day.weekday() not in [1, 3]:
+#                 continue
+#             dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
+#
+#             all_data = get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
+#             if not all_data:
+#                 continue
+#             all_info.append(all_data)
+#
+#             # trains_info = get_trains_number(all_data)
+#             # if not trains_info:
+#             #     continue
+#             # detailed_info, errors = get_info_in_train(trains_info)
+#             # train_info.extend(detailed_info)
+#             # train_errors.extend(errors)
+#
+#     # тут мы записываем в json все направления
+#     with open("all_info.json", "w", encoding="utf-8") as f:
+#         json.dump(all_info, f, ensure_ascii=False, indent=4)
+#     # # тут более точная информация по поезду
+#     # with open("detailed_data.json", "w", encoding="utf-8") as f:
+#     #     json.dump(train_info, f, ensure_ascii=False, indent=4)
+#     # # тут создаем json с ошибками
+#     # with open("train_errors.json", "w", encoding="utf-8") as f:
+#     #     json.dump(train_errors, f, ensure_ascii=False, indent=4)
 
 
 def read_json():
@@ -246,8 +284,8 @@ def read_json():
                         "CarTypeName": car.get("CarTypeName"),
                         "MinPrice": car.get("MinPrice"),
                         "MaxPrice": car.get("MaxPrice"),
-                        "ServiceCosts":  next(iter(car.get("ServiceCosts", [])), None),
-                        "Carriers":  next(iter(car.get("Carriers", [])), None),
+                        "ServiceCosts": next(iter(car.get("ServiceCosts", [])), None),
+                        "Carriers": next(iter(car.get("Carriers", [])), None),
 
                         "HasNonRefundableTariff": car.get("HasNonRefundableTariff"),
                         "HasPlacesForDisabledPersons": car.get("HasPlacesForDisabledPersons"),
@@ -275,7 +313,7 @@ if __name__ == "__main__":
     all_info = []
     train_info = []
     train_errors = []
-    # start_parse()
+    start_parse()
     read_json()
     end = time.perf_counter()
     diff = end - start
