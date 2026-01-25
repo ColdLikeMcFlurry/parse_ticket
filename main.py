@@ -2,6 +2,7 @@ import pprint
 import time
 import requests
 import json
+import ijson
 import os
 import pandas as pd
 from datetime import date, timedelta, datetime
@@ -246,12 +247,15 @@ def start_parse():
 
 def read_json():
     # тут читаем json-файл со всей информацией по направлению
-    with open(f"all_info.json", "r", encoding="utf-8") as file_w:
-        directions = json.load(file_w)
+    with open(f"all_info.json", "rb") as file_w:
+        # directions = json.load(file_w)
+        directions = ijson.items(file_w, 'item')
+
 
         # проходимся по направлениям
         for direction in directions:
-            # обработка ошибок
+            # pprint.pprint(direction)
+            # обработка ошибок, код 310
             if direction.get('errorInfo') and direction['errorInfo'].get('Code') == 310:
                 errors = direction.get('errorInfo')
                 pprint.pprint(errors, sort_dicts=False)
@@ -262,6 +266,7 @@ def read_json():
                 # print(train['TrainNumber'])
                 # берем все вагоны по направлению
                 cars = train.get("CarGroups", [])
+                # проходимся по вагонам в поезде
                 for car in cars:
                     # print(car["MinPrice"])
                     data = {
@@ -293,17 +298,14 @@ def read_json():
                         "InitialStationName": train.get("InitialStationName"),
                         "FinalStationName": train.get("FinalStationName"),
 
-                        "InitialTrainStationCode": train.get("InitialTrainStationCode"),
-                        "FinalTrainStationInfo": train.get("FinalTrainStationInfo")['StationCode'],
+                        "InitialTrainStationInfo": train.get("InitialTrainStationInfo", {}).get('StationCode'),
+                        "FinalTrainStationInfo": train.get("FinalTrainStationInfo", {}).get('StationCode'),
 
                         "TrainDescription": train.get("TrainDescription"),
                         "TrainBrandCode": train.get("TrainBrandCode")
 
                     }
                     pprint.pprint(data, sort_dicts=False)
-                # проходимся по вагонам в поезде
-                # for car in cars:
-                #     print(len(cars))
 
 
 if __name__ == "__main__":
