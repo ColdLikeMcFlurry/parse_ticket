@@ -176,6 +176,9 @@ def start_parse():
         stFrom, stTo, orig_code, dest_code = route[0], route[1], route[2], route[3]
         for j in range(8, 15):
             next_day = start_date + timedelta(days=j)
+            # обработнка нужных дней
+            if next_day.weekday() not in [1, 3]:
+                continue
             dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
             time.sleep(7)
 
@@ -220,30 +223,34 @@ def read_json():
                 # print(train['TrainNumber'])
                 # берем все вагоны по направлению
                 cars = train.get("CarGroups", [])
-                data = {
+                for car in cars:
+                    # print(car["MinPrice"])
+                    data = {
+                        'date_search': datetime.today().strftime('%Y-%m-%d'),
+                        "DepartureDateTime": train["DepartureDateTime"],
 
-                    "TrainNumber": train["TrainNumber"],
+                        "TrainNumber": train["TrainNumber"],
 
-                    "OriginName": train["OriginName"],
-                    "DestinationName": train["DestinationName"],
+                        "OriginName": train["OriginName"],
+                        "DestinationName": train["DestinationName"],
 
-                    "OriginStationCode": train["OriginStationCode"],
-                    "DestinationStationCode": train["DestinationStationCode"],
+                        "OriginStationCode": train["OriginStationCode"],
+                        "DestinationStationCode": train["DestinationStationCode"],
 
-                    "InitialStationName": train["InitialStationName"],
-                    "FinalStationName": train["FinalStationName"],
+                        "CarTypeName": car["CarTypeName"],
+                        "MinPrice": car["MinPrice"],
+                        "MaxPrice": car["MaxPrice"],
 
-                    "InitialTrainStationCode": train["InitialTrainStationCode"],
-                    "FinalTrainStationInfo": train["FinalTrainStationInfo"]['StationCode'],
+                        "InitialStationName": train["InitialStationName"],
+                        "FinalStationName": train["FinalStationName"],
 
-                    "TrainDescription": train["TrainDescription"],
-                    "TrainBrandCode": train["TrainBrandCode"],
+                        "InitialTrainStationCode": train["InitialTrainStationCode"],
+                        "FinalTrainStationInfo": train["FinalTrainStationInfo"]['StationCode'],
 
-                    'date_search': datetime.today().strftime('%Y-%m-%d'),
-                    "DepartureDateTime": train["DepartureDateTime"]
-
-                }
-                pprint.pprint(data, sort_dicts=False)
+                        "TrainDescription": train["TrainDescription"],
+                        "TrainBrandCode": train["TrainBrandCode"]
+                    }
+                    pprint.pprint(data, sort_dicts=False)
                 # проходимся по вагонам в поезде
                 # for car in cars:
                 #     print(len(cars))
