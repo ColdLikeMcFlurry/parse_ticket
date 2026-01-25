@@ -64,6 +64,7 @@ def get_trains_info(st_from, st_to, orig, dest, dprt_dt):
         response.raise_for_status()  # выбросит ошибку, если статус != 200
         print(f'ответ от сервера - {response.status_code} для маршрута {st_from} - {st_to} на {dprt_dt.split('T')[0]}')
         trains_info = response.json()
+        print(trains_info)
         print(f'Получил информацио о поездах на маршруте {st_from} - {st_to}')
         # добавляем дату и маршруты в те ответы, где поезда не курсируют
         if trains_info.get('errorInfo') and trains_info['errorInfo'].get('Code') == 310:
@@ -135,7 +136,7 @@ def get_info_in_train(trains):
             response.raise_for_status()
 
             train_info = response.json()
-
+            # print(train_info)
             # Проверяем, есть ли логическая ошибка в ответе API
             if train_info.get("ProviderError") or train_info.get("Message"):
                 msg = train_info.get("Message", "Неизвестная ошибка API")
@@ -174,13 +175,13 @@ def get_data_from_excel():
 def start_parse():
     for route in get_data_from_excel():
         stFrom, stTo, orig_code, dest_code = route[0], route[1], route[2], route[3]
-        for j in range(8, 15):
+        for j in range(5, 10):
             next_day = start_date + timedelta(days=j)
             # обработнка нужных дней
             if next_day.weekday() not in [1, 3]:
                 continue
             dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
-            time.sleep(7)
+            time.sleep(10)
 
             all_data = get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
             if not all_data:
@@ -226,29 +227,40 @@ def read_json():
                 for car in cars:
                     # print(car["MinPrice"])
                     data = {
-                        'date_search': datetime.today().strftime('%Y-%m-%d'),
-                        "DepartureDateTime": train["DepartureDateTime"],
 
-                        "TrainNumber": train["TrainNumber"],
+                        "date_search": datetime.today().strftime('%Y-%m-%d'),
+                        "DepartureDateTime": train.get("DepartureDateTime"),
 
-                        "OriginName": train["OriginName"],
-                        "DestinationName": train["DestinationName"],
+                        "TrainNumber": train.get("TrainNumber"),
 
-                        "OriginStationCode": train["OriginStationCode"],
-                        "DestinationStationCode": train["DestinationStationCode"],
+                        # "OriginName": train["OriginName"],
+                        # "DestinationName": train["DestinationName"],
+                        "OriginName": direction.get("OriginStationInfo", {}).get("StationName"),
+                        "DestinationName": direction.get("DestinationStationInfo", {}).get("StationName"),
 
-                        "CarTypeName": car["CarTypeName"],
-                        "MinPrice": car["MinPrice"],
-                        "MaxPrice": car["MaxPrice"],
+                        # "OriginStationCode": train["OriginStationCode"],
+                        # "DestinationStationCode": train["DestinationStationCode"],
+                        "OriginStationCode": direction.get("OriginStationInfo", {}).get("StationCode"),
+                        "DestinationStationCode": direction.get("DestinationStationInfo", {}).get("StationCode"),
 
-                        "InitialStationName": train["InitialStationName"],
-                        "FinalStationName": train["FinalStationName"],
+                        "CarTypeName": car.get("CarTypeName"),
+                        "MinPrice": car.get("MinPrice"),
+                        "MaxPrice": car.get("MaxPrice"),
+                        "ServiceCosts":  next(iter(car.get("ServiceCosts", [])), None),
+                        "Carriers":  next(iter(car.get("Carriers", [])), None),
 
-                        "InitialTrainStationCode": train["InitialTrainStationCode"],
-                        "FinalTrainStationInfo": train["FinalTrainStationInfo"]['StationCode'],
+                        "HasNonRefundableTariff": car.get("HasNonRefundableTariff"),
+                        "HasPlacesForDisabledPersons": car.get("HasPlacesForDisabledPersons"),
 
-                        "TrainDescription": train["TrainDescription"],
-                        "TrainBrandCode": train["TrainBrandCode"]
+                        "InitialStationName": train.get("InitialStationName"),
+                        "FinalStationName": train.get("FinalStationName"),
+
+                        "InitialTrainStationCode": train.get("InitialTrainStationCode"),
+                        "FinalTrainStationInfo": train.get("FinalTrainStationInfo")['StationCode'],
+
+                        "TrainDescription": train.get("TrainDescription"),
+                        "TrainBrandCode": train.get("TrainBrandCode")
+
                     }
                     pprint.pprint(data, sort_dicts=False)
                 # проходимся по вагонам в поезде
@@ -257,10 +269,15 @@ def read_json():
 
 
 if __name__ == "__main__":
-    # check_connection()
+    start = time.perf_counter()
+    check_connection()
     start_date = date.today()
     all_info = []
     train_info = []
     train_errors = []
     # start_parse()
     read_json()
+    end = time.perf_counter()
+    diff = end - start
+
+    print(f"закончил собирать данные за: {diff / 60} минут")
