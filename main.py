@@ -260,9 +260,42 @@ def read_json():
             if direction.get('errorInfo') and direction['errorInfo'].get('Code') == 310:
                 errors = direction.get('errorInfo')
                 data_errors = {
-                    "MinPrice": errors.get("MinPrice", ''),
+                    "date_search": datetime.today().strftime('%Y-%m-%d'),
+                    "DepartureDateTime": errors.get("dprt_dt", '').split('T')[0],
+
+                    "TrainNumber": errors.get("TrainNumber", None),
+
+                    "OriginName": errors.get("OriginName", None),
+                    "DestinationName": errors.get("DestinationName", None),
+                    # "OriginName": errors.get("OriginStationInfo", {}).get("StationName"),
+                    # "DestinationName": errors.get("DestinationStationInfo", {}).get("StationName"),
+
+                    "OriginStationCode": errors.get("OriginStationCode", None),
+                    "DestinationStationCode": errors.get("DestinationStationCode", None),
+                    # "OriginStationCode": errors.get("OriginStationInfo", {}).get("StationCode"),
+                    # "DestinationStationCode": errors.get("DestinationStationInfo", {}).get("StationCode"),
+
+                    "CarTypeName": errors.get("CarTypeName", None),
+                    "MinPrice": errors.get("MinPrice", 3000000),
+                    "MaxPrice": errors.get("MaxPrice", 3000000),
+                    "ServiceCosts": next(iter(errors.get("ServiceCosts", [])), None),
+                    "ServiceClasses": next(iter(errors.get("ServiceClasses", [])), None),
+                    "Carriers": next(iter(errors.get("Carriers", [])), None),
+
+                    "HasNonRefundableTariff": errors.get("HasNonRefundableTariff", False),
+                    "HasPlacesForDisabledPersons": errors.get("HasPlacesForDisabledPersons", False),
+
+                    "InitialStationName": errors.get("InitialStationName", None),
+                    "FinalStationName": errors.get("FinalStationName", None),
+
+                    "InitialTrainStationInfo": errors.get("InitialTrainStationInfo", {}).get('StationCode'),
+                    "FinalTrainStationInfo": errors.get("FinalTrainStationInfo", {}).get('StationCode'),
+
+                    "TrainDescription": errors.get("TrainDescription", None),
+                    "TrainBrandCode": errors.get("TrainBrandCode", None)
                 }
                 # pprint.pprint(errors, sort_dicts=False)
+                all_items.append(data_errors)
             # берем все поезда по направлению
             trains = direction.get("Trains", [])
             # проходимся по поедам в по направлению
