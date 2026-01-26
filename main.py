@@ -196,7 +196,7 @@ def start_parse():
 
         # Формируем все задачи
         for route in get_data_from_excel():
-            for j in range(0, 120):
+            for j in range(0, 15):
                 next_day = start_date + timedelta(days=j)
                 future = executor.submit(process_one_request, route, next_day)
                 futures.append(future)
@@ -210,6 +210,8 @@ def start_parse():
     # Запись результата
     with open("all_info.json", "w", encoding="utf-8") as f:
         json.dump(all_info, f, ensure_ascii=False, indent=4)
+
+    print("перехожу к чтению JSON")
 
 
 # def start_parse():
@@ -250,15 +252,17 @@ def read_json():
     with open(f"all_info.json", "rb") as file_w:
         # directions = json.load(file_w)
         directions = ijson.items(file_w, 'item')
-
-
+        all_items = []
         # проходимся по направлениям
         for direction in directions:
             # pprint.pprint(direction)
             # обработка ошибок, код 310
             if direction.get('errorInfo') and direction['errorInfo'].get('Code') == 310:
                 errors = direction.get('errorInfo')
-                pprint.pprint(errors, sort_dicts=False)
+                data_errors = {
+                    "MinPrice": errors.get("MinPrice", ''),
+                }
+                # pprint.pprint(errors, sort_dicts=False)
             # берем все поезда по направлению
             trains = direction.get("Trains", [])
             # проходимся по поедам в по направлению
@@ -268,13 +272,12 @@ def read_json():
                 cars = train.get("CarGroups", [])
                 # проходимся по вагонам в поезде
                 for car in cars:
-                    # print(car["MinPrice"])
                     data = {
 
                         "date_search": datetime.today().strftime('%Y-%m-%d'),
-                        "DepartureDateTime": train.get("DepartureDateTime"),
+                        "DepartureDateTime": train.get("DepartureDateTime", '').split('T')[0],
 
-                        "TrainNumber": train.get("TrainNumber"),
+                        "TrainNumber": train.get("TrainNumber", ''),
 
                         # "OriginName": train["OriginName"],
                         # "DestinationName": train["DestinationName"],
@@ -286,26 +289,36 @@ def read_json():
                         "OriginStationCode": direction.get("OriginStationInfo", {}).get("StationCode"),
                         "DestinationStationCode": direction.get("DestinationStationInfo", {}).get("StationCode"),
 
-                        "CarTypeName": car.get("CarTypeName"),
-                        "MinPrice": car.get("MinPrice"),
-                        "MaxPrice": car.get("MaxPrice"),
+                        "CarTypeName": car.get("CarTypeName", ''),
+                        "MinPrice": car.get("MinPrice", ),
+                        "MaxPrice": car.get("MaxPrice", ),
                         "ServiceCosts": next(iter(car.get("ServiceCosts", [])), None),
+                        "ServiceClasses": next(iter(car.get("ServiceClasses", [])), None),
                         "Carriers": next(iter(car.get("Carriers", [])), None),
 
-                        "HasNonRefundableTariff": car.get("HasNonRefundableTariff"),
-                        "HasPlacesForDisabledPersons": car.get("HasPlacesForDisabledPersons"),
+                        "HasNonRefundableTariff": car.get("HasNonRefundableTariff", ),
+                        "HasPlacesForDisabledPersons": car.get("HasPlacesForDisabledPersons", ),
 
-                        "InitialStationName": train.get("InitialStationName"),
-                        "FinalStationName": train.get("FinalStationName"),
+                        "InitialStationName": train.get("InitialStationName", ''),
+                        "FinalStationName": train.get("FinalStationName", ''),
 
                         "InitialTrainStationInfo": train.get("InitialTrainStationInfo", {}).get('StationCode'),
                         "FinalTrainStationInfo": train.get("FinalTrainStationInfo", {}).get('StationCode'),
 
-                        "TrainDescription": train.get("TrainDescription"),
-                        "TrainBrandCode": train.get("TrainBrandCode")
+                        "TrainDescription": train.get("TrainDescription", ''),
+                        "TrainBrandCode": train.get("TrainBrandCode", '')
 
                     }
+                    all_items.append(data)
                     pprint.pprint(data, sort_dicts=False)
+        print('Перехожу к формирования файла excel')
+        return all_items
+
+
+def create_excel(all_price):
+    df = pd.DataFrame(all_price)
+    df_sorted = df.sort_values(by=['DepartureDateTime', 'TrainNumber'], ascending=True)
+    df_sorted.to_excel('тестовая выгрузка.xlsx', index=False)
 
 
 if __name__ == "__main__":
@@ -315,8 +328,9 @@ if __name__ == "__main__":
     all_info = []
     train_info = []
     train_errors = []
-    start_parse()
-    read_json()
+    # start_parse()
+    df = read_json()
+    create_excel(df)
     end = time.perf_counter()
     diff = end - start
 
