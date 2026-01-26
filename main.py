@@ -182,13 +182,14 @@ def process_one_request(route, next_day):
         return None
     dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
 
-    time.sleep(random.uniform(2, 4))
+    time.sleep(random.uniform(5, 10))
 
     return get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
 
 
 #  тут сохдаем многопоточность, например, 1 направление на 5 дат
 def start_parse():
+    print('Приступаю к парсингу')
     all_info = []
 
     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -196,7 +197,7 @@ def start_parse():
 
         # Формируем все задачи
         for route in get_data_from_excel():
-            for j in range(0, 15):
+            for j in range(0, 120):
                 next_day = start_date + timedelta(days=j)
                 future = executor.submit(process_one_request, route, next_day)
                 futures.append(future)
@@ -211,7 +212,7 @@ def start_parse():
     with open("all_info.json", "w", encoding="utf-8") as f:
         json.dump(all_info, f, ensure_ascii=False, indent=4)
 
-    print("перехожу к чтению JSON")
+    print("Перехожу к чтению JSON")
 
 
 # def start_parse():
@@ -248,6 +249,7 @@ def start_parse():
 
 
 def read_json():
+    print("Начинаю читать JSON")
     # тут читаем json-файл со всей информацией по направлению
     with open(f"all_info.json", "rb") as file_w:
         # directions = json.load(file_w)
@@ -349,9 +351,10 @@ def read_json():
 
 
 def create_excel(all_price):
+    print('Начинаю формировать файл excel')
     df = pd.DataFrame(all_price)
     df_sorted = df.sort_values(by=['DepartureDateTime', 'TrainNumber'], ascending=True)
-    df_sorted.to_excel('тестовая выгрузка.xlsx', index=False)
+    df_sorted.to_excel(f'{os.getcwd()}\тестовая выгрузка.xlsx', index=False)
 
 
 if __name__ == "__main__":
@@ -361,9 +364,9 @@ if __name__ == "__main__":
     all_info = []
     train_info = []
     train_errors = []
-    # start_parse()
-    df = read_json()
-    create_excel(df)
+    start_parse()
+    data_from_json = read_json()
+    create_excel(data_from_json)
     end = time.perf_counter()
     diff = end - start
 
