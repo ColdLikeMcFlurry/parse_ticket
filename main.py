@@ -182,7 +182,7 @@ def process_one_request(route, next_day):
         return None
     dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
 
-    time.sleep(random.uniform(5, 10))
+    time.sleep(random.uniform(2, 3))
 
     return get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
 
@@ -192,7 +192,7 @@ def start_parse():
     print('Приступаю к парсингу')
     all_info = []
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=7) as executor:
         futures = []
 
         # Формируем все задачи
@@ -265,7 +265,7 @@ def read_json():
                     "date_search": datetime.today().strftime('%Y-%m-%d'),
                     "DepartureDateTime": errors.get("dprt_dt", '').split('T')[0],
 
-                    "TrainNumber": errors.get("TrainNumber", None),
+                    "TrainNumber": errors.get("TrainNumber", 'Поезд не курсирует'),
 
                     "OriginName": errors.get("OriginName", None),
                     "DestinationName": errors.get("DestinationName", None),
@@ -277,12 +277,12 @@ def read_json():
                     # "OriginStationCode": errors.get("OriginStationInfo", {}).get("StationCode"),
                     # "DestinationStationCode": errors.get("DestinationStationInfo", {}).get("StationCode"),
 
-                    "CarTypeName": errors.get("CarTypeName", None),
+                    "CarTypeName": errors.get("CarTypeName", 'Поезд не курсирует'),
                     "MinPrice": errors.get("MinPrice", 3000000),
                     "MaxPrice": errors.get("MaxPrice", 3000000),
-                    "ServiceCosts": next(iter(errors.get("ServiceCosts", [])), None),
-                    "ServiceClasses": next(iter(errors.get("ServiceClasses", [])), None),
-                    "Carriers": next(iter(errors.get("Carriers", [])), None),
+                    "ServiceCosts": next(iter(errors.get("ServiceCosts", [])), 0),
+                    "ServiceClasses": next(iter(errors.get("ServiceClasses", [])), 'Поезд не курсирует'),
+                    "Carriers": next(iter(errors.get("Carriers", [])), 'Поезд не курсирует'),
 
                     "HasNonRefundableTariff": errors.get("HasNonRefundableTariff", False),
                     "HasPlacesForDisabledPersons": errors.get("HasPlacesForDisabledPersons", False),
@@ -293,8 +293,8 @@ def read_json():
                     "InitialTrainStationInfo": errors.get("InitialTrainStationInfo", {}).get('StationCode'),
                     "FinalTrainStationInfo": errors.get("FinalTrainStationInfo", {}).get('StationCode'),
 
-                    "TrainDescription": errors.get("TrainDescription", None),
-                    "TrainBrandCode": errors.get("TrainBrandCode", None)
+                    "TrainDescription": errors.get("TrainDescription", 'Поезд не курсирует'),
+                    "TrainBrandCode": errors.get("TrainBrandCode", 'Поезд не курсирует')
                 }
                 # pprint.pprint(errors, sort_dicts=False)
                 all_items.append(data_errors)
@@ -307,6 +307,8 @@ def read_json():
                 cars = train.get("CarGroups", [])
                 # проходимся по вагонам в поезде
                 for car in cars:
+                    if next(iter(car.get("Carriers", [])), None) not in ['ФПК', 'Поезд не курсирует']:
+                        continue
                     data = {
 
                         "date_search": datetime.today().strftime('%Y-%m-%d'),
@@ -325,9 +327,9 @@ def read_json():
                         "DestinationStationCode": direction.get("DestinationStationInfo", {}).get("StationCode"),
 
                         "CarTypeName": car.get("CarTypeName", ''),
-                        "MinPrice": car.get("MinPrice", ),
-                        "MaxPrice": car.get("MaxPrice", ),
-                        "ServiceCosts": next(iter(car.get("ServiceCosts", [])), None),
+                        "MinPrice": int(car.get("MinPrice", 0)),
+                        "MaxPrice": int(car.get("MaxPrice", 0)),
+                        "ServiceCosts": int(next(iter(car.get("ServiceCosts", [])), None)),
                         "ServiceClasses": next(iter(car.get("ServiceClasses", [])), None),
                         "Carriers": next(iter(car.get("Carriers", [])), None),
 
@@ -361,9 +363,9 @@ if __name__ == "__main__":
     start = time.perf_counter()
     check_connection()
     start_date = date.today()
-    all_info = []
-    train_info = []
-    train_errors = []
+    # all_info = []
+    # train_info = []
+    # train_errors = []
     start_parse()
     data_from_json = read_json()
     create_excel(data_from_json)
