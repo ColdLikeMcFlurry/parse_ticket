@@ -7,6 +7,8 @@ import os
 import pandas as pd
 from datetime import date, timedelta, datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 import random
 
 # URL для проверки доступности сайта
@@ -62,7 +64,10 @@ def get_trains_info(st_from, st_to, orig, dest, dprt_dt):
     }
 
     try:
-        response = requests.get(api_url, headers=headers, params=params, timeout=10)
+        session = requests.Session()
+        retries = Retry(total=20, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+        response = session.get(api_url, headers=headers, params=params, timeout=10)
         print(f"Статус запроса к API: {response.status_code}")
         response.raise_for_status()  # выбросит ошибку, если статус != 200
         print(f'ответ от сервера - {response.status_code} для маршрута {st_from} - {st_to} на {dprt_dt.split('T')[0]}')
@@ -178,13 +183,13 @@ def get_data_from_excel():
 # тут берем инфу на 1  направление
 def process_one_request(route, next_day):
     stFrom, stTo, orig_code, dest_code = route
-    if next_day.weekday() not in [1, 3]:  # вторник или четверг
-        return None
-    dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
+    if next_day.weekday()  in [1, 3]:  # вторник или четверг
+        # return None
+        dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
 
-    time.sleep(random.uniform(2, 3))
+        time.sleep(random.uniform(2, 4))
 
-    return get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
+        return get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
 
 
 #  тут сохдаем многопоточность, например, 1 направление на 5 дат
@@ -192,12 +197,12 @@ def start_parse():
     print('Приступаю к парсингу')
     all_info = []
 
-    with ThreadPoolExecutor(max_workers=7) as executor:
+    with ThreadPoolExecutor(max_workers=9) as executor:
         futures = []
 
         # Формируем все задачи
         for route in get_data_from_excel():
-            for j in range(0, 120):
+            for j in range(0, 30):
                 next_day = start_date + timedelta(days=j)
                 future = executor.submit(process_one_request, route, next_day)
                 futures.append(future)
@@ -307,12 +312,12 @@ def read_json():
                 cars = train.get("CarGroups", [])
                 # проходимся по вагонам в поезде
                 for car in cars:
-                    if next(iter(car.get("Carriers", [])), None) not in ['ФПК', 'Поезд не курсирует']:
-                        continue
+                    # if next(iter(car.get("Carriers", [])), None) not in ['ФПК', 'Поезд не курсирует']:
+                    #     continue
                     data = {
 
                         "date_search": datetime.today().strftime('%Y-%m-%d'),
-                        "DepartureDateTime": train.get("DepartureDateTime", '').split('T')[0],
+                        "DepartureDateTime": train.get("LocalDepartureDateTime", '').split('T')[0],
 
                         "TrainNumber": train.get("TrainNumber", ''),
 
