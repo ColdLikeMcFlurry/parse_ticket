@@ -35,11 +35,11 @@ def check_connection():
     try:
         response = requests.get(site_url, headers=headers, timeout=10)
         if response.status_code == 200:
-            print("✅ Доступ к сайту есть, можно работать с API")
+            print("Доступ к сайту есть, можно работать с API")
         else:
-            print(f"❌ Ошибка при доступе к сайту: {response.status_code}")
+            print(f"Ошибка при доступе к сайту: {response.status_code}")
     except requests.exceptions.RequestException as e:
-        print(f"❌ Произошла ошибка при запросе: {e}")
+        print(f"Произошла ошибка при запросе: {e}")
 
 
 def get_trains_info(st_from, st_to, orig, dest, dprt_dt):
@@ -65,15 +65,15 @@ def get_trains_info(st_from, st_to, orig, dest, dprt_dt):
 
     try:
         session = requests.Session()
-        retries = Retry(total=20, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
         session.mount("https://", HTTPAdapter(max_retries=retries))
         response = session.get(api_url, headers=headers, params=params, timeout=10)
         print(f"Статус запроса к API: {response.status_code}")
         response.raise_for_status()  # выбросит ошибку, если статус != 200
-        print(f'ответ от сервера - {response.status_code} для маршрута {st_from} - {st_to} на {dprt_dt.split('T')[0]}')
+        print(f"ответ от сервера - {response.status_code} для маршрута {st_from} - {st_to} на {dprt_dt.split('T')[0]}")
         trains_info = response.json()
         # print(trains_info)
-        print(f'Получил информацио о поездах на маршруте {st_from} - {st_to}')
+        print(f"Получил информацио о поездах на маршруте {st_from} - {st_to}")
         # добавляем дату и маршруты в те ответы, где поезда не курсируют
         if trains_info.get('errorInfo') and trains_info['errorInfo'].get('Code') == 310:
             try:
@@ -87,16 +87,16 @@ def get_trains_info(st_from, st_to, orig, dest, dprt_dt):
         # print(trains_info['errorInfo']['Message'])
         return trains_info
     except requests.exceptions.RequestException as e:
-        print(f"❌ Ошибка запроса к API: {e}")
+        print(f"Ошибка запроса к API: {e}")
         return None
     except json.JSONDecodeError:
-        print("❌ Не удалось декодировать JSON")
+        print("Не удалось декодировать JSON")
         return None
 
 
 def get_trains_number(trains_info):
     if not trains_info:
-        print("❌ Нет данных для обработки")
+        print("Нет данных для обработки")
         return
 
     train_numbers = []
@@ -138,9 +138,9 @@ def get_info_in_train(trains):
             "TrainNumber": train['number']
         }
         try:
-            response = requests.post(api_url, headers=headers, json=params, timeout=10)
+            response = requests.post(api_url, headers=headers, json=params, timeout=(15,30))
             status = response.status_code
-            print(f"🔹 Запрос к API для поезда {train['number']} → статус {status}")
+            print(f"Запрос к API для поезда {train['number']} → статус {status}")
             response.raise_for_status()
 
             train_info = response.json()
@@ -148,7 +148,7 @@ def get_info_in_train(trains):
             # Проверяем, есть ли логическая ошибка в ответе API
             if train_info.get("ProviderError") or train_info.get("Message"):
                 msg = train_info.get("Message", "Неизвестная ошибка API")
-                print(f"⚠️ Ошибка от API для {train['number']} ({train['dprt_dt']}): {msg}")
+                print(f"Ошибка от API для {train['number']} ({train['dprt_dt']}): {msg}")
                 errors_info.append({
                     "train": train['number'],
                     "date": train['dprt_dt'],
@@ -157,11 +157,11 @@ def get_info_in_train(trains):
                     "api_message": msg
                 })
             else:
-                print(f"✅ Получены данные по поезду {train['number']} на {train['dprt_dt']}")
+                print(f"Получены данные по поезду {train['number']} на {train['dprt_dt']}")
                 all_train_info.append(train_info)
 
         except requests.exceptions.RequestException as e:
-            print(f"❌ Ошибка запроса для поезда {train['number']}: {e}")
+            print(f"Ошибка запроса для поезда {train['number']}: {e}")
             errors_info.append({
                 "train": train['number'],
                 "date": train['dprt_dt'],
@@ -187,7 +187,7 @@ def process_one_request(route, next_day):
         # return None
         dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
 
-        time.sleep(random.uniform(2, 4))
+        time.sleep(random.uniform(3, 5))
 
         return get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
 
@@ -197,12 +197,12 @@ def start_parse():
     print('Приступаю к парсингу')
     all_info = []
 
-    with ThreadPoolExecutor(max_workers=9) as executor:
+    with ThreadPoolExecutor(max_workers=7) as executor:
         futures = []
 
         # Формируем все задачи
         for route in get_data_from_excel():
-            for j in range(0, 30):
+            for j in range(0, 120):
                 next_day = start_date + timedelta(days=j)
                 future = executor.submit(process_one_request, route, next_day)
                 futures.append(future)
