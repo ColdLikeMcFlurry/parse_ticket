@@ -138,7 +138,7 @@ def get_info_in_train(trains):
             "TrainNumber": train['number']
         }
         try:
-            response = requests.post(api_url, headers=headers, json=params, timeout=(15,30))
+            response = requests.post(api_url, headers=headers, json=params, timeout=(15, 30))
             status = response.status_code
             print(f"Запрос к API для поезда {train['number']} → статус {status}")
             response.raise_for_status()
@@ -183,11 +183,11 @@ def get_data_from_excel():
 # тут берем инфу на 1  направление
 def process_one_request(route, next_day):
     stFrom, stTo, orig_code, dest_code = route
-    if next_day.weekday()  in [1, 3]:  # вторник или четверг
+    if next_day.weekday() in [1, 3]:  # вторник или четверг
         # return None
         dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
 
-        time.sleep(random.uniform(3, 5))
+        time.sleep(random.uniform(1.5, 2.8))
 
         return get_trains_info(stFrom, stTo, orig_code, dest_code, dprt_dt)
 
@@ -328,8 +328,8 @@ def read_json():
 
                         # "OriginStationCode": train["OriginStationCode"],
                         # "DestinationStationCode": train["DestinationStationCode"],
-                        "OriginStationCode": direction.get("OriginStationInfo", {}).get("StationCode"),
-                        "DestinationStationCode": direction.get("DestinationStationInfo", {}).get("StationCode"),
+                        "OriginStationCode": int(direction.get("OriginStationInfo", {}).get("StationCode")),
+                        "DestinationStationCode": int(direction.get("DestinationStationInfo", {}).get("StationCode")),
 
                         "CarTypeName": car.get("CarTypeName", ''),
                         "MinPrice": int(car.get("MinPrice", 0)),
@@ -344,8 +344,8 @@ def read_json():
                         "InitialStationName": train.get("InitialStationName", ''),
                         "FinalStationName": train.get("FinalStationName", ''),
 
-                        "InitialTrainStationInfo": train.get("InitialTrainStationInfo", {}).get('StationCode'),
-                        "FinalTrainStationInfo": train.get("FinalTrainStationInfo", {}).get('StationCode'),
+                        "InitialTrainStationInfo": int(train.get("InitialTrainStationInfo", {}).get('StationCode')),
+                        "FinalTrainStationInfo": int(train.get("FinalTrainStationInfo", {}).get('StationCode')),
 
                         "TrainDescription": train.get("TrainDescription", ''),
                         "TrainBrandCode": train.get("TrainBrandCode", '')
