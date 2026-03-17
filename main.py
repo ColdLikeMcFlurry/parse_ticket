@@ -49,7 +49,8 @@ def get_trains_info(st_from, st_to, orig, dest, dprt_dt):
     # Параметры запроса
     params = {
         "service_provider": "B2B_RZD",
-        "getByLocalTime": "true",
+        # "getByLocalTime": "true",
+        "getByLocalTime": "false",
         "carGrouping": "DontGroup",
         "origin": orig,
         "destination": dest,
@@ -184,6 +185,7 @@ def get_data_from_excel():
 def process_one_request(route, next_day):
     stFrom, stTo, orig_code, dest_code = route
     if next_day.weekday() in [1, 3]:  # вторник или четверг
+        # if next_day.weekday() in [0, 1, 2, 3, 4, 5, 6]:
         # return None
         dprt_dt = next_day.strftime("%Y-%m-%dT00:00:00")
 
@@ -317,7 +319,7 @@ def read_json():
                     data = {
 
                         "date_search": datetime.today().strftime('%Y-%m-%d'),
-                        "DepartureDateTime": train.get("LocalDepartureDateTime", '').split('T')[0],
+                        "DepartureDateTime": train.get("DepartureDateTime", '').split('T')[0],
 
                         "TrainNumber": train.get("TrainNumber", ''),
 
@@ -361,16 +363,13 @@ def create_excel(all_price):
     print('Начинаю формировать файл excel')
     df = pd.DataFrame(all_price)
     df_sorted = df.sort_values(by=['DepartureDateTime', 'TrainNumber'], ascending=True)
-    df_sorted.to_excel(f'{os.getcwd()}\тестовая выгрузка.xlsx', index=False)
+    df_sorted.to_excel(f'{os.getcwd()}/выгрузка.xlsx', index=False)
 
 
 if __name__ == "__main__":
     start = time.perf_counter()
     check_connection()
     start_date = date.today()
-    # all_info = []
-    # train_info = []
-    # train_errors = []
     start_parse()
     data_from_json = read_json()
     create_excel(data_from_json)
